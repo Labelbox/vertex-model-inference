@@ -27,11 +27,11 @@ Once the integration is set up, a model inference sequence works as follows:
 2)	Webhook Action: Labelbox `Models` webhook is triggered - the `Models` endpoint returns a list of options for the user in the Labelbox UI. 
 3)	User Action: User clicks on an option from the dropdown that appears. 
 4)	Webhook Action: Labelbox `Model Run` webhook is triggered - the `Model Run` endpoint must contain (or trigger other cloud functions that contain) code to do the following:
-- Export data rows from Labelbox (covered in example ETL function)
-- Format export to what your Vertex model expects (covered in example ETL function)
-- Run an inference job on an existing Vertex model (covered in example Inference function)
-- Format inference job outputs into Labelbox format (covered in example Inference function)
-- Upload predictions to the model run in quesiton (covered in example Inference function)
+- Export data rows from Labelbox
+- Format export to what your Vertex model expects
+- Run an inference job on an existing Vertex model
+- Format inference job outputs into Labelbox format
+- Upload predictions to the model run in quesiton
 
 ### How to set up in your own Labelbox / GCP envirionment
 1) Set up (or select) a google project in GCS to host your Cloud Functions, take note of the google project name
