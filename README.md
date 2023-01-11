@@ -1,6 +1,6 @@
-# vertex-model-training
+# vertex-model-inference
 
-This repository is a one stop shop for integrating Labelbox with a model Training backend on Google VertexAI (AutoML).  
+This repository is a one stop shop for leveraging existing Vertex models to upload model predictions to a Labelbox Model Run.  
 
 ### Background
 Labelbox is designed to integrate with any Model Training or Pipeline backend.  Whether or not your existing backend supports an Active Learning lifecycle, Labelbox integration can improve your training data MLDLC by adding the following features:
@@ -15,25 +15,22 @@ Labelbox is designed to integrate with any Model Training or Pipeline backend.  
 - Integrates with MLDLC and CI/CD pipelines
 - Data discovery with Catalog: Load all historical Model inference to Labelbox. The seamless integration , so that they get the biggest model improvement for their $/effort/time
 
-### Data Modality
-Image Object Detection
-
 ### Dependencies: 
 - [Labelbox SDK/Webhooks](https://docs.labelbox.com/docs/webhooks)  
 - [VertexAI SDK](https://cloud.google.com/python/docs/reference/aiplatform/latest)
 - [Google Cloud Functions](https://cloud.google.com/functions)
-- Future Consideration: Vertex Pipelines
 
 ### How it works
-Once the integration is set up, a model training sequence works as follows: 
+Once the integration is set up, a model inference sequence works as follows: 
 
-1)	Initiate Model Training: User clicks "Train Model" from Model Runs Page
-2)	Webhook Action Fired: Labelbox Model Run webhook is triggered.  The webhook calls Google Cloud Function.  Labelbox provides a sample Google Cloud Function (WIP) to give customers a fast "Hello World"
-3)	Webhook ETL: The webhook callback calls Labelbox SDK to export data from the model run.  The data is then translated from Labelbox Format to VertexAI format and loadedd to Vertex as a Vertex AI Dataset. 
-4)	Webhook Launch Model Training: VertexAI API is called to initiate the Model Training Job
-5)	Webhook Polling Model Training Job: Webhook checks periodically for Model Training completion
-6)	Webhook Inference on Test/Train splits: When model training is done, the trained model is invoked to run inference on the test/validate data splits
-7)	Webhook Load results to Labelbox: Webhook handles calls Lablebox SDK to load test/validate inference and diagnostics enabling Labelbox's detailed visual model run analaysis
+1)	User Action: User clicks "Train Model" from Model Runs Page.
+2)	Webhook Action: Labelbox `Models` webhook is triggered - the `Models` endpoint returns a list of options for the user in the Labelbox UI. 
+3)	User Action: User clicks on an option from the dropdown that appears. 
+4)	Webhook Action: Labelbox `Model Run` webhook is triggered - the `Model Run` endpoint must contain (or trigger other cloud functions that contain) code to do the following:
+- Export data rows from Labelbox
+- Run an inference job
+- Format inference job outputs into Labelbox format
+- Upload predictions to the model run in quesiton
 
 ### How to set up in your own Labelbox / GCP envirionment
 1) Set up (or select) a google project in GCS to host your Cloud Functions, take note of the google project name
@@ -61,8 +58,8 @@ gcloud config set functions/region REGION
 4) Clone this repo
 
 ```
-git clone https://github.com/Labelbox/vertex-model-training.git`
-cd vertex-model-training
+git clone https://github.com/Labelbox/vertex-model-inference.git`
+cd vertex-model-inference
 ```
 
 5) Set up the /models endpoint to query available models in your training environment
@@ -77,25 +74,19 @@ gcloud functions deploy models --entry-point models --runtime python37 --trigger
 
 
 
-6) Set up the train, monitor, and inference functions
+6) Set up your inference function
 
 - It will ask to you enable `artifactregistry.googleapis.com` and `run.googleapis.com` API services. 
 - Adjust the memory limits for your application for each function. 
 
 ```
-gcloud beta functions deploy train-function --gen2 --entry-point train_function --runtime python38 --trigger-http --allow-unauthenticated --timeout=3600  --memory=8192MB
-
-gcloud functions deploy monitor-function --entry-point monitor_function --runtime python37 --trigger-http --allow-unauthenticated --timeout=540
-
 gcloud beta functions deploy inference-function --gen2 --entry-point inference_function --runtime python38 --trigger-http --allow-unauthenticated --timeout=3600 --memory=8192MB
 ```
 
 7) Configure env variables and deploy ETL function
 
 ```
-export TRAIN_FUNCTION_URL=$(gcloud functions describe train-function --gen2 | grep "uri: " | cut  -c 8-) 
 export INFERENCE_FUNCTION_URL=$(gcloud functions describe inference-function --gen2 | grep "uri: " | cut  -c 8-)
-export MONITOR_FUNCTION_URL=$(gcloud functions describe monitor-function | grep " url: " | cut  -c 8-)
 
 export GCS_BUCKET="<GCS_BUCKET>"
 export GCS_REGION="us-central1"
@@ -134,7 +125,3 @@ For instance, if you changed `etl_function` in main.py or any functions it calls
 gcloud beta functions deploy etl-function --gen2 --entry-point etl_function --runtime python38 --trigger-http --allow-unauthenticated --timeout=3600 --set-env-vars=lb_api_key=$LB_API_KEY,gcs_region=$GCS_REGION,gcs_bucket=$GCS_BUCKET,model_name=$MODEL_NAME,google_project=$GOOGLE_PROJECT,train_url=$TRAIN_FUNCTION_URL,monitor_url=$MONITOR_FUNCTION_URL,inference_url=$INFERENCE_FUNCTION_URL --memory=8192MB
 
 ```
-
-
-
-
